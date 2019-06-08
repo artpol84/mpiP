@@ -15,6 +15,10 @@
 #ifndef _MPIPCONFIG_H
 #define _MPIPCONFIG_H
 
+#define MPIP_CALLSITE_STACK_DEPTH_MAX 8
+#define MPIP_HELP_LIST "mpip-help@googlegroups.com"
+
+
 /* Define if demangle.h is present. */
 #undef HAVE_DEMANGLE_H
 
