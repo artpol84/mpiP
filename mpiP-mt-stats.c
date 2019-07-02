@@ -18,7 +18,6 @@ static void key_destruct(void *data)
   /* Stop the timer and disable this TLS */
   s->disabled = 1;
   mpiPi_stats_thr_timer_stop(hndl->tls_ptr);
-
 }
 
 /*
@@ -74,6 +73,10 @@ int mpiPi_stats_mt_init(mpiPi_mt_stat_t *mt_state, mpiPi_thr_mode_t mode)
     default:
       break;
     }
+
+  /* Initialize TLS for the main thread */
+  (void)mpiPi_stats_mt_gettls(mt_state);
+
   return 0;
 }
 
