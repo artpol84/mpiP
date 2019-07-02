@@ -164,6 +164,10 @@ void mpiPi_stats_mt_timer_start(mpiPi_mt_stat_t *mt_state)
 {
   mpiP_tslist_elem_t *curr = NULL;
 
+  mpiPi_TIME ts_start;
+  mpiPi_GETTIME(&ts_start);
+  printf("lib: %d: duration=%lf\n", mpiPi.rank, ts_start);
+
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Only update the cumulative time */
       mpiPi_stats_thr_timer_start(&mt_state->rank_stats);
@@ -183,6 +187,10 @@ void mpiPi_stats_mt_timer_start(mpiPi_mt_stat_t *mt_state)
 void mpiPi_stats_mt_timer_stop(mpiPi_mt_stat_t *mt_state)
 {
   mpiP_tslist_elem_t *curr = NULL;
+
+  mpiPi_TIME ts_start;
+  mpiPi_GETTIME(&ts_start);
+  printf("lib: %d: duration=%lf\n", mpiPi.rank, ts_start);
 
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Only update the cumulative time */
