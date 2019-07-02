@@ -136,6 +136,7 @@ mpiPi_stats_mt_gettls(mpiPi_mt_stat_t *mt_state)
 void mpiPi_stats_mt_merge(mpiPi_mt_stat_t *mt_state)
 {
   mpiP_tslist_elem_t *curr = NULL;
+  int thr_id = 0;
 
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Nothing to do here */
@@ -151,6 +152,7 @@ void mpiPi_stats_mt_merge(mpiPi_mt_stat_t *mt_state)
       mpiPi_mt_stat_tls_t *hndl = curr->ptr;
       mpiPi_thread_stat_t *s = hndl->tls_ptr;
       mpiPi_stats_thr_merge_all(&mt_state->rank_stats, s);
+      printf("%d:%d: duration=%lf\n", mpiPi.rank, thr_id, s->cum_time);
       curr = mpiPi_tslist_next(curr);
     }
 }
