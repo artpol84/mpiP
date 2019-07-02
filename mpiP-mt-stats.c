@@ -166,12 +166,12 @@ void mpiPi_stats_mt_timer_start(mpiPi_mt_stat_t *mt_state)
 
   mpiPi_TIME ts_start, ts_end;
   mpiPi_GETTIME(&ts_start);
-  printf("lib: %d: ts=%lf\n", mpiPi.rank, ts_start);
+  printf("lib-start: %d: ts=%lf\n", mpiPi.rank, ts_start);
 
   mpiPi_GETTIME(&ts_start);
   sleep(1);
   mpiPi_GETTIME(&ts_end);
-  printf("lib: %d: duration=%lf\n", mpiPi.rank, ts_end - ts_start);
+  printf("lib-start: %d: duration=%lf\n", mpiPi.rank, ts_end - ts_start);
 
 
   if(MPIPI_MODE_ST == mt_state->mode) {
@@ -196,7 +196,7 @@ void mpiPi_stats_mt_timer_stop(mpiPi_mt_stat_t *mt_state)
 
   mpiPi_TIME ts_start;
   mpiPi_GETTIME(&ts_start);
-  printf("lib: %d: ts=%lf\n", mpiPi.rank, ts_start);
+  printf("lib-end: %d: ts=%lf\n", mpiPi.rank, ts_start);
 
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Only update the cumulative time */
