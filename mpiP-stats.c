@@ -156,6 +156,10 @@ static inline double _get_duration(mpiPi_thread_stat_t *s)
 {
   double dur = 0.0;
   dur = (mpiPi_GETTIMEDIFF (&s->ts_end, &s->ts_start) / 1000000.0);
+
+  printf("%d: two timestamps: start = %lf, end = %lf, diff = %lf, duration = %lf\n",
+    mpiPi.rank, s->ts_start, s->ts_end, s->ts_end - s->ts_start, dur);
+  
   return dur;
 }
 
@@ -165,8 +169,16 @@ void mpiPi_stats_thr_timer_start(mpiPi_thread_stat_t *s)
 }
 void mpiPi_stats_thr_timer_stop(mpiPi_thread_stat_t *s)
 {
+  double dur = 0.0, bkp = s->cum_time;
   mpiPi_GETTIME (&s->ts_end);
-  s->cum_time += _get_duration(s);
+
+    dur = _get_duration(s);
+
+  s->cum_time += dur;
+
+  printf("%d: update: old = %lf, dur = %lf, new = %lf\n",
+    mpiPi.rank, bkp, dur, s->cum_time);
+
 }
 
 double mpiPi_stats_thr_cum_time(mpiPi_thread_stat_t *s)

@@ -462,6 +462,8 @@ mpiPi_print_verbose_task_info (FILE * fp)
            mpiPi.global_app_time : 0);
 }
 
+double wrapper_overhead = 0;
+
 static void
 mpiPi_print_concise_task_info (FILE * fp)
 {
@@ -476,6 +478,7 @@ mpiPi_print_concise_task_info (FILE * fp)
   int tcolw = 17;
   int pcolw = 6;
   int i;
+
 
   for (i = 0; i < mpiPi.size; i++)
     {
@@ -2021,6 +2024,7 @@ mpiPi_coll_print_concise_callsite_time_info (FILE * fp)
     double val;
     int rank;
   } min_time, max_time, local_min_time, local_max_time;
+
 
   if (mpiPi.rank == mpiPi.collectorRank)
     {

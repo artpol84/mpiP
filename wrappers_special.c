@@ -189,16 +189,29 @@ F77_MPI_INIT_THREAD (int *required, int *provided, int *ierr)
 
 /* ----- FINALIZE -------------------------------------------------- */
 
+extern double wrapper_overhead;
+
 static int
 _MPI_Finalize ()
 {
   int rc = 0;
+
+{
+    int delay = 0;
+    while(delay) {
+        sleep(1);
+    }
+}
+    printf("%d: wrapper overhead = %lf\n", mpiPi.rank, wrapper_overhead);
+
 
   mpiPi_finalize ();
   mpiPi.enabled = 0;
   mpiPi_msg_debug ("calling PMPI_Finalize\n");
   rc = PMPI_Finalize ();
   mpiPi_msg_debug ("returning from PMPI_Finalize\n");
+
+
 
   return rc;
 }

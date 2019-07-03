@@ -16,8 +16,11 @@ static void key_destruct(void *data)
   mpiPi_mt_stat_tls_t *hndl = (mpiPi_mt_stat_tls_t *)data;
   mpiPi_thread_stat_t *s = hndl->tls_ptr;
   /* Stop the timer and disable this TLS */
-  s->disabled = 1;
   mpiPi_stats_thr_timer_stop(hndl->tls_ptr);
+  s->disabled = 1;
+  hndl->is_active = 0;
+      printf("%d: stop timer, tid=%d, ts = %lf, stat_ts = %lf, stop ts = %lf, cum=%lf\n", 
+              mpiPi.rank, hndl->tid, GET_TS(), hndl->tls_ptr->ts_start,  hndl->tls_ptr->ts_end, hndl->tls_ptr->cum_time );
 }
 
 /*
@@ -27,6 +30,16 @@ static void key_destruct(void *data)
  *
  * ============================================================================
  */
+
+#include <sys/syscall.h>
+
+#define GET_TS() ({                         \
+    struct timespec ts;                     \
+    double ret = 0;                         \
+    clock_gettime(CLOCK_MONOTONIC, &ts);    \
+    ret = ts.tv_sec + 1E-9*ts.tv_nsec;      \
+    ret;                                    \
+})
 
 static mpiPi_mt_stat_tls_t *_alloc_tls(mpiPi_mt_stat_t *mt_state)
 {
@@ -39,7 +52,11 @@ static mpiPi_mt_stat_tls_t *_alloc_tls(mpiPi_mt_stat_t *mt_state)
   if (NULL == hndl->tls_ptr) {
       mpiPi_abort("failed to allocate TLS");
     }
+    
+    hndl->tid = syscall(SYS_gettid);
+    printf("%d: Create TLS, tid=%d, ts = %lf\n", mpiPi.rank, hndl->tid, GET_TS());
   return hndl;
+  
 }
 
 static void _free_tls(mpiPi_mt_stat_tls_t *hndl)
@@ -97,6 +114,9 @@ void mpiPi_stats_mt_fini(mpiPi_mt_stat_t *mt_state)
     }
 }
 
+
+static __thread mpiPi_mt_stat_tls_t *this_tls = NULL;
+
 mpiPi_mt_stat_tls_t *
 mpiPi_stats_mt_gettls(mpiPi_mt_stat_t *mt_state)
 {
@@ -111,12 +131,14 @@ mpiPi_stats_mt_gettls(mpiPi_mt_stat_t *mt_state)
     } else {
       /* For the MPI_THREAD_MULTIPLE mode use TLS
        */
-      hndl = pthread_getspecific(mt_state->tls_this);
+      // hndl = pthread_getspecific(mt_state->tls_this);
+      hndl = this_tls;
       if (NULL == hndl)
         {
-          hndl = _alloc_tls(mt_state);
+          this_tls = hndl = _alloc_tls(mt_state);
           (void) pthread_setspecific(mt_state->tls_this, hndl);
           mpiPi_stats_thr_init(hndl->tls_ptr);
+          hndl->is_active = 1;
           if( mpiPi.enabled ) {
               /* NOTE: this is not precise!
                * - The thread could have been started long time ago
@@ -129,6 +151,8 @@ mpiPi_stats_mt_gettls(mpiPi_mt_stat_t *mt_state)
                *   than 100% of the application time.
                */
               mpiPi_stats_thr_timer_start(hndl->tls_ptr);
+              printf("%d: start timer, tid=%d, ts = %lf, stat_ts = %lf, stop ts = %lf, cum=%lf\n", 
+                  mpiPi.rank, hndl->tid, GET_TS(), hndl->tls_ptr->ts_start,  hndl->tls_ptr->ts_end, hndl->tls_ptr->cum_time );
             }
           mpiPi_tslist_append(mt_state->tls_list, hndl);
         }
@@ -149,13 +173,15 @@ void mpiPi_stats_mt_merge(mpiPi_mt_stat_t *mt_state)
   curr = mpiPi_tslist_first(mt_state->tls_list);
   mpiPi_stats_thr_cs_reset(&mt_state->rank_stats);
 
+
+    printf("%d: wrap-up: ts = %lf\n", mpiPi.rank, GET_TS());
   /* Go over all TLS structures and merge them into the rank-wide callsite info */
   while (curr)
     {
       mpiPi_mt_stat_tls_t *hndl = curr->ptr;
       mpiPi_thread_stat_t *s = hndl->tls_ptr;
       mpiPi_stats_thr_merge_all(&mt_state->rank_stats, s);
-      printf("%d:%d: duration=%lf\n", mpiPi.rank, thr_id, s->cum_time);
+      printf("%d:%d: contrib=%lf duration=%lf\n", mpiPi.rank, hndl->tid, s->cum_time, mt_state->rank_stats.cum_time);
       curr = mpiPi_tslist_next(curr);
     }
 }
@@ -165,14 +191,15 @@ void mpiPi_stats_mt_timer_start(mpiPi_mt_stat_t *mt_state)
   mpiP_tslist_elem_t *curr = NULL;
 
   mpiPi_TIME ts_start, ts_end;
-  mpiPi_GETTIME(&ts_start);
-  printf("lib-start: %d: ts=%lf\n", mpiPi.rank, ts_start);
 
-  mpiPi_GETTIME(&ts_start);
-  sleep(1);
-  mpiPi_GETTIME(&ts_end);
-  printf("lib-start: %d: duration=%lf\n", mpiPi.rank, ts_end - ts_start);
+//  printf("%d: start timer: ts = %lf\n", mpiPi.rank, GET_TS());
 
+if( mpiPi.rank == 0){
+    int delay = 0;
+    while(delay) {
+        sleep(1);
+    }
+}
 
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Only update the cumulative time */
@@ -185,7 +212,12 @@ void mpiPi_stats_mt_timer_start(mpiPi_mt_stat_t *mt_state)
   while (curr)
     {
       mpiPi_mt_stat_tls_t *hndl = curr->ptr;
-      mpiPi_stats_thr_timer_start(hndl->tls_ptr);
+      if( hndl->is_active )
+        {
+          mpiPi_stats_thr_timer_start(hndl->tls_ptr);
+        }
+      printf("%d: start timer, tid=%d, ts = %lf, stat_ts = %lf, stop ts = %lf, cum=%lf\n", 
+              mpiPi.rank, hndl->tid, GET_TS(), hndl->tls_ptr->ts_start,  hndl->tls_ptr->ts_end, hndl->tls_ptr->cum_time );
       curr = mpiPi_tslist_next(curr);
     }
 }
@@ -194,9 +226,11 @@ void mpiPi_stats_mt_timer_stop(mpiPi_mt_stat_t *mt_state)
 {
   mpiP_tslist_elem_t *curr = NULL;
 
+//  printf("%d: stop timer: ts = %lf\n", mpiPi.rank, GET_TS());
+
   mpiPi_TIME ts_start;
   mpiPi_GETTIME(&ts_start);
-  printf("lib-end: %d: ts=%lf\n", mpiPi.rank, ts_start);
+  //printf("lib-end: %d: ts=%lf\n", mpiPi.rank, ts_start);
 
   if(MPIPI_MODE_ST == mt_state->mode) {
       /* Only update the cumulative time */
@@ -209,7 +243,13 @@ void mpiPi_stats_mt_timer_stop(mpiPi_mt_stat_t *mt_state)
   while (curr)
     {
       mpiPi_mt_stat_tls_t *hndl = curr->ptr;
-      mpiPi_stats_thr_timer_stop(hndl->tls_ptr);
+      if( hndl->is_active )
+        {
+          mpiPi_stats_thr_timer_stop(hndl->tls_ptr);
+        }
+
+      printf("%d: stop timer, tid=%d, ts = %lf, stat_ts = %lf, stop ts = %lf, cum=%lf\n", 
+              mpiPi.rank, hndl->tid, GET_TS(), hndl->tls_ptr->ts_start,  hndl->tls_ptr->ts_end, hndl->tls_ptr->cum_time );
       curr = mpiPi_tslist_next(curr);
     }
 }

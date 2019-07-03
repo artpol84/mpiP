@@ -13,7 +13,9 @@ typedef enum {
 typedef struct mpiPi_mt_stat_s mpiPi_mt_stat_t;
 
 typedef struct {
+    int tid;
   mpiPi_mt_stat_t *mt_state;
+  int is_active;
   mpiPi_thread_stat_t *tls_ptr;
 } mpiPi_mt_stat_tls_t;
 

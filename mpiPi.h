@@ -32,6 +32,16 @@
 #include "bfd.h"
 #endif
 
+
+#define GET_TS() ({                         \
+    struct timespec ts;                     \
+    double ret = 0;                         \
+    clock_gettime(CLOCK_MONOTONIC, &ts);    \
+    ret = ts.tv_sec + 1E-9*ts.tv_nsec;      \
+    ret;                                    \
+})
+
+
 #if !defined(CEXTRACT) && !defined(ENABLE_API_ONLY)
 #include <mpi.h>
 #include "mpiPi_def.h"
