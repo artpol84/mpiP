@@ -42,6 +42,13 @@ typedef struct {
   double time_stats[MPIP_NFUNC][MPIP_COMM_HISTCNT][MPIP_SIZE_HISTCNT];
 } mpiPi_msg_stat_t;
 
+typedef struct {
+  unsigned op;
+  unsigned tag;
+  int count;
+  long cookie;
+} mpiPi_tag_stat_t;
+
 /* Per-thread MPI status */
 typedef struct {
   /* Avoid double-measurement when MPI functions are
@@ -55,6 +62,7 @@ typedef struct {
 
   /* Callsite statistics */
   h_t *cs_stats;
+  h_t *tag_stats;
   /* Collectives and point-to-point statistics */
   mpiPi_msg_stat_t coll, pt2pt;
 } mpiPi_thread_stat_t;
@@ -69,6 +77,7 @@ void mpiPi_stats_thr_timer_start(mpiPi_thread_stat_t *s);
 void mpiPi_stats_thr_timer_stop(mpiPi_thread_stat_t *s);
 double mpiPi_stats_thr_cum_time(mpiPi_thread_stat_t *s);
 
+/* Callsite statistics */
 void mpiPi_stats_thr_cs_gather(mpiPi_thread_stat_t *stat,
                              int *ac, callsite_stats_t ***av );
 
@@ -85,12 +94,24 @@ void mpiPi_stats_thr_cs_lookup(mpiPi_thread_stat_t *stat,
                               int initMax);
 void mpiPi_stats_thr_cs_merge(mpiPi_thread_stat_t *dst,
                               mpiPi_thread_stat_t *src);
+void mpiPi_stats_thr_cs_reset(mpiPi_thread_stat_t *stat);
 
+/* Tag statistics */
+void
+mpiPi_stats_thr_tag_upd (mpiPi_thread_stat_t *stat,
+                         unsigned op, int tag);
+void mpiPi_stats_thr_tag_merge(mpiPi_thread_stat_t *dst,
+                               mpiPi_thread_stat_t *src);
+void mpiPi_stats_thr_tag_reset(mpiPi_thread_stat_t *stat);
+void mpiPi_stats_thr_tag_gather(mpiPi_thread_stat_t *stat,
+                             int *ac, mpiPi_tag_stat_t ***av );
+
+/* Collectives stats */
 void mpiPi_stats_thr_coll_upd(mpiPi_thread_stat_t *stat,
                                   int op, double dur, double size,
                                   MPI_Comm * comm);
 void mpiPi_stats_thr_coll_gather(mpiPi_thread_stat_t *stat, double **_outbuf);
-void mpiPi_stats_thr_cs_reset(mpiPi_thread_stat_t *stat);
+
 void mpiPi_stats_thr_coll_merge(mpiPi_thread_stat_t *dst,
                                 mpiPi_thread_stat_t *src);
 

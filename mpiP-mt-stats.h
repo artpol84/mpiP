@@ -52,6 +52,11 @@ void mpiPi_stats_mt_cs_lookup(mpiPi_mt_stat_t *stat,
                               callsite_stats_t *dummy_buf,
                               int initMax);
 
+void mpiPi_stats_mt_tag_gather(mpiPi_mt_stat_t *mt_state,
+                             int *ac, mpiPi_tag_stat_t ***av);
+void mpiPi_stats_mt_tag_upd (mpiPi_mt_stat_tls_t *hndl,
+                             int op, int tag);
+
 void mpiPi_stats_mt_coll_upd(mpiPi_mt_stat_tls_t *hndl,
                              int op, double dur, double size,
                              MPI_Comm * comm);

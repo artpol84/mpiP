@@ -508,6 +508,35 @@ mpiPi_mergeResults ()
   return retval;
 }
 
+static int
+mpiPi_flush_tag_stats ()
+{
+  int ac, i;
+  mpiPi_tag_stat_t **av;
+  int cur_op = -1;
+
+  /* gather local task data */
+  mpiPi_stats_mt_tag_gather(&mpiPi.task_stats, &ac, &av);
+  cur_op = -1;
+
+  if( ac == 0 ) {
+      return 1;
+    }
+
+  char name[256];
+  sprintf(name, "mpiP_tag_stat.%d", mpiPi.rank);
+  FILE *fp = fopen(name, "w");
+  for(i=0; i<ac; i++) {
+      if (av[i]->op != cur_op) {
+          cur_op = av[i]->op;
+          fprintf(fp, "op: %s\n", mpiPi_lookup[cur_op - mpiPi_BASE].name);
+        }
+      fprintf(fp, "\t%d : %d\n", av[i]->tag, av[i]->count);
+    }
+  fclose(fp);
+  free(av);
+  return 1;
+}
 
 static int
 mpiPi_mergeCollectiveStats ()
@@ -750,6 +779,8 @@ mpiPi_generateReport (int report_style)
   if (mergeResult == 1 && mpiPi.stackDepth == 0)
     mergeResult = mpiPi_insert_MPI_records ();
   if (mergeResult == 1)
+    mergeResult = mpiPi_flush_tag_stats ();
+  if (mergeResult == 1)
     mergeResult = mpiPi_mergeCollectiveStats ();
   if (mergeResult == 1)
     mergeResult = mpiPi_mergept2ptStats ();
@@ -835,6 +866,13 @@ mpiPi_update_pt2pt_stats (mpiPi_mt_stat_tls_t *tls,
                           MPI_Comm * comm)
 {
   mpiPi_stats_mt_pt2pt_upd(tls, op, dur, size, comm);
+}
+
+void
+mpiPi_update_tag_stats (mpiPi_mt_stat_tls_t *tls,
+                          int op, int tag)
+{
+  mpiPi_stats_mt_tag_upd(tls, op, tag);
 }
 
 #endif /* } ifndef ENABLE_API_ONLY */

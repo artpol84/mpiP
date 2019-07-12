@@ -39,6 +39,7 @@
 
 #include "mpiP-hash.h"
 #include "mpiP-callsites.h"
+#include "mpiP-stats.h"
 #include "mpiP-mt-stats.h"
 
 #include "mpip_timers.h"
@@ -50,6 +51,9 @@
 #define MPIP_CALLSITE_STACK_DEPTH (mpiPi.stackDepth)
 #define MPIP_CALLSITE_STATS_COOKIE 518641
 #define MPIP_CALLSITE_STATS_COOKIE_ASSERT(f) {assert(MPIP_CALLSITE_STATS_COOKIE==((f)->cookie));}
+
+#define MPIP_TAG_STATS_COOKIE 0xCOFFEEAA
+#define MPIP_TAG_STATS_COOKIE_ASSERT(f) {assert(MPIP_CALLSITE_STATS_COOKIE==((f)->cookie));}
 
 #ifdef USE_MPI3_CONSTS
 typedef const void mpip_const_void_t;
@@ -170,11 +174,15 @@ typedef struct _mpiPi_t
   h_t *global_callsite_stats_agg;
   h_t *global_MPI_stats_agg;
 
+  h_t *global_tag_stats;
+
   mpiPi_mt_stat_t task_stats;
 
   mpiPi_lookup_t *lookup;
 
   int stackDepth;
+  int tagStatistics;
+
   double reportPrintThreshold;
   int baseNames;
   MPIP_REPORT_FORMAT_TYPE reportFormat;

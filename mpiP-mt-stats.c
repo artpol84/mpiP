@@ -150,6 +150,7 @@ void mpiPi_stats_mt_merge(mpiPi_mt_stat_t *mt_state)
 
   curr = mpiPi_tslist_first(mt_state->tls_list);
   mpiPi_stats_thr_cs_reset(&mt_state->rank_stats);
+  mpiPi_stats_thr_tag_reset(&mt_state->rank_stats);
 
   /* Go over all TLS structures and merge them into the rank-wide callsite info */
   while (curr)
@@ -236,6 +237,19 @@ void mpiPi_stats_mt_cs_lookup(mpiPi_mt_stat_t *stat,
   mpiPi_stats_thr_cs_lookup(&stat->rank_stats, task_stats, task_lookup,
                             dummy_buf, initMax);
 }
+
+void mpiPi_stats_mt_tag_gather(mpiPi_mt_stat_t *mt_state,
+                             int *ac, mpiPi_tag_stat_t ***av)
+{
+  mpiPi_stats_thr_tag_gather(&mt_state->rank_stats, ac, av);
+}
+
+void mpiPi_stats_mt_tag_upd (mpiPi_mt_stat_tls_t *hndl,
+                             int op, int tag)
+{
+  mpiPi_stats_thr_tag_upd(hndl->tls_ptr, op, tag);
+}
+
 
 void mpiPi_stats_mt_coll_upd(mpiPi_mt_stat_tls_t *hndl,
                              int op, double dur, double size,

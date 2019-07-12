@@ -68,6 +68,7 @@ extern void mpiPi_update_collective_stats (mpiPi_mt_stat_tls_t *tls, int op, dou
                                            MPI_Comm * comm);
 extern void mpiPi_update_pt2pt_stats (mpiPi_mt_stat_tls_t *tls, int op, double dur, double size,
                                       MPI_Comm * comm);
+extern void mpiPi_update_tag_stats (mpiPi_mt_stat_tls_t *tls, int op, int tag);
 
 #ifdef NEED_MREAD_REAL_TIME_DECL
 #include <sys/systemcfg.h>

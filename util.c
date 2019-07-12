@@ -80,7 +80,7 @@ mpiPi_getenv ()
 
       av[ac] = NULL;
 
-      for (; ((c = getopt (ac, av, "cdef:gk:lm:noprs:t:vx:yz")) != EOF);)
+      for (; ((c = getopt (ac, av, "cdef:ghk:lm:noprs:t:vx:yz")) != EOF);)
         {
           switch (c)
             {
@@ -201,6 +201,9 @@ mpiPi_getenv ()
               }
               break;
 
+            case 'h':
+              mpiPi.tagStatistics = 1;
+              break;
             case 'n':
               mpiPi.baseNames = 1;
               break;
@@ -263,7 +266,6 @@ mpiPi_getenv ()
 
             case 'a':
             case 'b':
-            case 'h':
             case 'i':
             case 'j':
             case 'q':

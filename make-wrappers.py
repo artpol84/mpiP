@@ -599,6 +599,23 @@ pt2ptList = [
     "MPI_Ssend"
   ]
 
+pt2ptAllList = [ 
+    "MPI_Bsend",
+    "MPI_Ibsend",
+    "MPI_Irsend",
+    "MPI_Isend",
+    "MPI_Issend",
+    "MPI_Rsend",
+    "MPI_Send",
+    "MPI_Sendrecv",
+    "MPI_Sendrecv_replace",
+    "MPI_Ssend",
+    "MPI_Recv",
+    "MPI_Irecv",
+    "MPI_Recv_init",
+
+  ]
+
 
 class VarDesc:
     def __init__ (self,name, basetype, pointerLevel, arrayLevel):
@@ -1178,8 +1195,18 @@ def CreateWrapper(funct, olist):
     if funct in pt2ptList :
       for i in fdict[funct].paramConciseList:
 	 if (fdict[funct].paramDict[i].basetype == "MPI_Comm"):
-           olist.append("\nif (mpiPi.do_pt2pt_stats_report) { mpiPi_update_pt2pt_stats(hndl, " + "mpiPi_" + funct + "," \
-              + " dur, " + "(double)messSize," +  " " + i + "); }\n")
+           olist.append("\nif (mpiPi.do_pt2pt_stats_report) {\n")
+           olist.append("    mpiPi_update_pt2pt_stats(hndl, " + "mpiPi_" + funct + "," \
+                  + " dur, " + "(double)messSize, " + i + ");\n")
+           olist.append("}\n")
+
+    if funct in pt2ptAllList :
+      if ( "Sendrecv" in funct ):
+         olist.append("mpiPi_update_tag_stats(hndl, " + "mpiPi_" + funct + ", (*sendtag));\n")
+         olist.append("mpiPi_update_tag_stats(hndl, " + "mpiPi_" + funct + ", (*recvtag));\n")
+      else :
+         olist.append("mpiPi_update_tag_stats(hndl, " + "mpiPi_" + funct + ", (*tag));\n")
+
 
     # end of enabled check
     olist.append("}\n\n")

@@ -109,10 +109,55 @@ trd_pc_comparator (const void *p1, const void *p2)
   return 0;
 }
 
+
+static int
+_thrd_tag_hashkey (const void *p)
+{
+  int res = 0;
+  int i;
+  mpiPi_tag_stat_t *tsp = (mpiPi_tag_stat_t *) p;
+  MPIP_TAG_STATS_COOKIE_ASSERT(tsp);
+  res ^= tsp->op << 16;
+  res ^= tsp->tag;
+  return 52271 ^ tsp->op ^ res ^ tsp->tag;
+}
+
+static int
+trd_tag_comparator (const void *p1, const void *p2)
+{
+  int i;
+  mpiPi_tag_stat_t *tsp1 = (mpiPi_tag_stat_t *) p1;
+  mpiPi_tag_stat_t *tsp2 = (mpiPi_tag_stat_t *) p2;
+  MPIP_TAG_STATS_COOKIE_ASSERT (tsp1);
+  MPIP_TAG_STATS_COOKIE_ASSERT (tsp2);
+
+#define express(f) {if ((tsp1->f) > (tsp2->f)) {return 1;} if ((tsp1->f) < (tsp2->f)) {return -1;}}
+  express (op);
+  express (tag);
+
+#undef express
+
+  return 0;
+}
+
+static int
+trd_tag_comparator_qsort (const void *p1, const void *p2)
+{
+  int i;
+  mpiPi_tag_stat_t **tsp1 = (mpiPi_tag_stat_t **) p1;
+  mpiPi_tag_stat_t **tsp2 = (mpiPi_tag_stat_t **) p2;
+  return trd_tag_comparator(*tsp1, *tsp2);
+}
+
 int mpiPi_stats_thr_init(mpiPi_thread_stat_t *stat)
 {
   stat->cs_stats = h_open (mpiPi.tableSize, _thrd_pc_hashkey,
                                       trd_pc_comparator);
+
+  if( mpiPi.tagStatistics ) {
+      stat->tag_stats =  h_open (mpiPi.tableSize, _thrd_tag_hashkey,
+                                 trd_tag_comparator);
+    }
 
   bzero(stat->coll.time_stats, sizeof(stat->coll.time_stats));
   if (mpiPi.do_collective_stats_report == 1)
@@ -147,6 +192,7 @@ void mpiPi_stats_thr_merge_all(mpiPi_thread_stat_t *dst,
                                mpiPi_thread_stat_t *src)
 {
   mpiPi_stats_thr_cs_merge(dst, src);
+  mpiPi_stats_thr_tag_merge(dst, src);
   mpiPi_stats_thr_coll_merge(dst, src);
   mpiPi_stats_thr_pt2pt_merge(dst, src);
   dst->cum_time += src->cum_time;
@@ -189,6 +235,8 @@ int mpiPi_stats_thr_is_on(mpiPi_thread_stat_t *stat)
   return !(stat->disabled) && mpiPi.enabled;
 }
 
+
+/* Callsites statistics */
 void
 mpiPi_stats_thr_cs_upd (mpiPi_thread_stat_t *stat,
                            unsigned op, unsigned rank, void **pc,
@@ -310,6 +358,109 @@ void mpiPi_stats_thr_cs_merge(mpiPi_thread_stat_t *dst,
     }
 
   free (av);
+}
+
+/* TAG usage statistics */
+
+void
+mpiPi_stats_thr_tag_upd (mpiPi_thread_stat_t *stat,
+                         unsigned op, int tag)
+{
+  int i;
+  mpiPi_tag_stat_t *tsp = NULL;
+  mpiPi_tag_stat_t key;
+
+  if(!mpiPi.tagStatistics) {
+      return;
+    }
+
+  /* Check for the nested calls */
+  if (!mpiPi_stats_thr_is_on(stat))
+    return;
+
+  key.op = op;
+  key.tag = tag;
+  key.cookie = MPIP_CALLSITE_STATS_COOKIE;
+
+  if (NULL == h_search (stat->tag_stats, &key, (void **) &tsp))
+    {
+      /* create and insert */
+      tsp = (mpiPi_tag_stat_t *) malloc (sizeof (callsite_stats_t));
+      bzero (tsp, sizeof (mpiPi_tag_stat_t));
+      *tsp = key;
+      tsp->count = 0;
+      h_insert (stat->tag_stats, tsp);
+    }
+  tsp->count++;
+  printf("UPD: tbl=%p, key=%p, %d !!!!\n", stat->tag_stats, tsp, tsp->count);
+  return;
+}
+
+void mpiPi_stats_thr_tag_merge(mpiPi_thread_stat_t *dst,
+                               mpiPi_thread_stat_t *src)
+{
+  if(!mpiPi.tagStatistics) {
+      return;
+    }
+
+  int ac, i;
+  mpiPi_tag_stat_t **av;
+  /* Merge callsite statistics */
+  h_gather_data (src->tag_stats, &ac, (void ***)&av);
+  for(i=0; i<ac; i++)
+    {
+      mpiPi_tag_stat_t *tsp_src = av[i], *tsp_dst;
+
+      printf("process: tbl=%p, key=%p\n", src->tag_stats, tsp_src);
+
+
+      /* Search for the callsite and create a new record if needed */
+      if (NULL == h_search (dst->tag_stats, tsp_src, (void **) &tsp_dst))
+        {
+          /* create and insert */
+          tsp_dst = (mpiPi_tag_stat_t *) malloc (sizeof (mpiPi_tag_stat_t));
+          bzero (tsp_dst, sizeof (mpiPi_tag_stat_t));
+          *tsp_dst = *tsp_src;
+          h_insert (dst->tag_stats, tsp_dst);
+        } else {
+          tsp_dst->count += tsp_src->count;
+        }
+      printf("tcp_dst=%p, op=%d, tag=%d, count=%d\n", tsp_dst,
+             tsp_dst->op, tsp_dst->tag, tsp_dst->count);
+    }
+  free (av);
+}
+
+void mpiPi_stats_thr_tag_reset(mpiPi_thread_stat_t *stat)
+{
+  int ac, ndx;
+  mpiPi_tag_stat_t **av;
+  mpiPi_tag_stat_t *csp = NULL;
+
+  if(!mpiPi.tagStatistics) {
+      return;
+    }
+
+  /* gather local task data */
+  h_drain(stat->tag_stats, &ac, (void ***)&av);
+
+  for (ndx = 0; ndx < ac; ndx++)
+    {
+      free(av[ndx]);
+    }
+  free(av);
+}
+
+void mpiPi_stats_thr_tag_gather(mpiPi_thread_stat_t *stat,
+                             int *ac, mpiPi_tag_stat_t ***av )
+{
+  *ac = 0;
+  if(!mpiPi.tagStatistics) {
+      return;
+    }
+
+  h_gather_data (stat->tag_stats, ac, (void ***)av);
+  qsort(*av, *ac, sizeof(**av), trd_tag_comparator_qsort);
 }
 
 /* Message size statistics */
