@@ -392,7 +392,6 @@ mpiPi_stats_thr_tag_upd (mpiPi_thread_stat_t *stat,
       h_insert (stat->tag_stats, tsp);
     }
   tsp->count++;
-  printf("UPD: tbl=%p, key=%p, %d !!!!\n", stat->tag_stats, tsp, tsp->count);
   return;
 }
 
@@ -410,10 +409,6 @@ void mpiPi_stats_thr_tag_merge(mpiPi_thread_stat_t *dst,
   for(i=0; i<ac; i++)
     {
       mpiPi_tag_stat_t *tsp_src = av[i], *tsp_dst;
-
-      printf("process: tbl=%p, key=%p\n", src->tag_stats, tsp_src);
-
-
       /* Search for the callsite and create a new record if needed */
       if (NULL == h_search (dst->tag_stats, tsp_src, (void **) &tsp_dst))
         {
@@ -425,8 +420,6 @@ void mpiPi_stats_thr_tag_merge(mpiPi_thread_stat_t *dst,
         } else {
           tsp_dst->count += tsp_src->count;
         }
-      printf("tcp_dst=%p, op=%d, tag=%d, count=%d\n", tsp_dst,
-             tsp_dst->op, tsp_dst->tag, tsp_dst->count);
     }
   free (av);
 }
